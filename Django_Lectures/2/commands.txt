@@ -1,0 +1,186 @@
+Commands:
+python manage.py makemigrations app
+python manage.py migrate
+python manage.py sqlmigrate app 0001
+python manage.py shell   (connecting to shell)
+
+Models and Fields:
+-in settings.py check the DATABASES dictionary
+-run the migration to create the database
+-inside the my_site/office open the models.py and create first model:
+-use fields:
+    class Patient(models.Model):
+        first_name = models.CharField(max_length=30)
+        last_name = models.CharField(max_length=30)
+        age = models.IntegerField()
+
+Migrations:
+    python manage.py makemigrations app  (does not make changes in the databse. However makes migration instructions)
+    python manage.py migrate   (migrate runs the created instructions)
+    python manage.py sqlmigrate app 0001   (does not do anything to db. It just show sets of instructions. Good for debuging)
+
+steps for migrations:
+    . Initial project "migrate" command
+    . Create app and create models
+    . Register app in INSTALLED_APPS in settings.py
+    . Run "makemigrations" for new app
+    . Run "migrate" for new migrations
+
+-add your app to INSTALLED_APPS in settings.py
+'office.apps.OfficeConfig',
+run makemigrations office
+then run migrate
+
+Data Interaction: Creating and Inserting
+run:
+    python manage.py shell
+
+run:
+    from office.models import Patient
+    carl = Patient(first_name='carl',last_name='smith',age=30)
+    carl.age
+30
+    carl.age<20
+False
+    carl.save()  #saving into the database
+
+You can create an object and save it at the same time:
+    Patient.objects.create(first_name='Yerma', last_name='Serikbayev', age=21)
+<Patient: Patient object (2)>
+
+You can create multiple objects at once (bulk_create):
+    >>> mylist=[Patient(first_name='adam',last_name='smith',age=40),Patient(first_name='carl',last_name='marx',age=40)]
+    >>> Patient.objects.bulk_create(mylist)
+[<Patient: Patient object (4)>, <Patient: Patient object (5)>]
+
+
+
+Data Interaction: Using .all()
+activate the shell
+    python manage.py shell
+
+    from office.models import Patient
+
+    Patient.objects.all()   #returns query set
+<QuerySet [<Patient: Patient object (1)>, <Patient: Patient object (2)>, <Patient: Patient object (3)>, <Patient: Patient object (4)>, <Patient: Patient object (5)>]>
+
+you can use indexes if you want specific objects
+    Patient.objects.all()[0]
+
+in models.py you can add __str__ method in order to get human readable string format of the objects:
+
+class Patient(models.Model):
+    first_name = models.CharField(max_length=30)
+    last_name = models.CharField(max_length=30)
+    age = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.last_name}, {self.first_name} is {self.age} years old."
+restart the shell
+    quit()
+
+start the shell again
+
+>>> from office.models import Patient
+>>> Patient.objects.all()
+<QuerySet [<Patient: smith, carl is 30 years old.>, <Patient: Serikbayev, Yerma is 21 years old.>, <Patient: Kolbasik, Asika is 21 years old.>, <Patient: smith, adam is 40 years old.>,
+ <Patient: marx, carl is 40 years old.>]>
+
+DATA INTERACTION: Filter() Get()
+
+By get() you can grab single item by its ID:
+    Patient.objects.get(pk=1)
+
+By filter() you cna grab items with the help of boolean operations:
+    Patient.objects.filter(last_name='smith').all()
+<QuerySet [<Patient: smith, carl is 30 years old.>, <Patient: smith, adam is 40 years old.>]>
+
+    Patient.objects.filter(last_name='smith').filter(age=40).all()
+<QuerySet [<Patient: smith, adam is 40 years old.>]>
+
+You can use "Q" operator for complex lookups:
+    from django.db.models import Q
+    Patient.objects.filter(Q(last_name='smith')& Q(age=40)).all()
+<QuerySet [<Patient: smith, adam is 40 years old.>]>
+
+DATA INTERACTION: Field lookups
+    Model.objects.filter(name__startswith="s")
+
+>>> Patient.objects.filter(last_name__startswith="s").all()
+<QuerySet [<Patient: smith, carl is 30 years old.>, <Patient: Serikbayev, Yerma is 21 years old.>, <Patient: smith, adam is 40 years old.>]>
+
+>>> Patient.objects.filter(age__in=[20,30,40]).all()
+<QuerySet [<Patient: smith, carl is 30 years old.>, <Patient: smith, adam is 40 years old.>, <Patient: marx, carl is 40 years old.>]>
+
+>>> Patient.objects.filter(age__gte=39).all()     (>=)
+<QuerySet [<Patient: smith, adam is 40 years old.>, <Patient: marx, carl is 40 years old.>]>
+
+>>> Patient.objects.order_by("age").all()
+<QuerySet [<Patient: Serikbayev, Yerma is 21 years old.>, <Patient: Kolbasik, Asika is 21 years old.>, <Patient: smith, carl is 30 years old.>, <Patient: smith, adam is 40 years old.>,
+ <Patient: marx, carl is 40 years old.>]>
+
+DATA INTERACTION: Updating Models
+
+-You need to give default value to newly added column
+-You also would want to put some validators:
+
+from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
+class Patient(models.Model):
+    first_name = models.CharField(max_length=30)
+    last_name = models.CharField(max_length=30)
+    age = models.IntegerField(validators=[MinValueValidator(0),MaxValueValidator(120)])
+    heartrate = models.IntegerField(default=60,validators=[MinValueValidator(1),MaxValueValidator(300)])
+
+    def __str__(self):
+        return f"{self.last_name}, {self.first_name} is {self.age} years old."
+
+DATA INTERACTION: Updating Entries
+
+>>> carl = Patient.objects.get(pk=1)
+>>> carl
+<Patient: smith, carl is 30 years old.>
+>>> carl.last_name='django'
+>>> carl
+<Patient: django, carl is 30 years old.>
+>>> carl.save()
+
+DATA INTERACTION: Deleting Entries
+
+<QuerySet [<Patient: django, carl is 30 years old.>, <Patient: Serikbayev, Yerma is 21 years old.>, <Patient: Kolbasik, Asika is 21 years old.>, <Patient: smith, adam is 40 years old.>
+, <Patient: marx, carl is 40 years old.>]>
+>>> data_point=Patient.objects.get(pk=1)
+>>> data_point
+<Patient: django, carl is 30 years old.>
+>>> data_point.delete()
+(1, {'office.Patient': 1})
+>>> Patient.objects.all()
+<QuerySet [<Patient: Serikbayev, Yerma is 21 years old.>, <Patient: Kolbasik, Asika is 21 years old.>, <Patient: smith, adam is 40 years old.>, <Patient: marx, carl is 40 years old.>]>
+
+CONNECTING TEMPLATES AND DATABASE MODELS:
+-create urls.py file in app level directory and connect it to project level urls.py
+-connect it to the views.list_patients
+
+-Then import model Patient to the view.py file and create a list_patients view like this :
+-create context dictionary
+
+from django.shortcuts import render
+from . import models
+
+def list_patients(request):
+    all_patients = models.Patient.objects.all()
+    context = {'patients':all_patients}
+    return render(request,'office/list.html',context=context)
+
+-then create list.html file in office/templates directory:
+
+<body>
+
+<ul>
+    {% for person in patients %}
+        <li>{{person.last_name}}</li>
+
+    {% endfor %}
+</ul>
+
+</body>

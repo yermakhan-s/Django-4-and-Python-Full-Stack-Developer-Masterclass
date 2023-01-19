@@ -1,0 +1,94 @@
+django-admin startproject my_site
+python manage.py startapp first_app
+python manage.py runserver
+python manage.py migrate     ------    when you did some changes in models etc....
+python manage.py makemigrations my_app
+
+
+Notes:
+-Templates:
+          DIRS':  os.path.join(BASE_DIR, 'templates/'
+
+Workflow:
+django-admin startproject my_site
+cd my_site
+python manage.py startapp my_app
+in my_app create urls.py
+create view -> render ro template
+in app level urls.py open urlpatterns and add views to them
+include app level url to the project level urls.py file
+python manage.py migrate
+add your app config to the 'INSTALLED_APPS' list in settings.py --- 'my_app.apps.MyAppConfig',     (this way no need to add Templates to DIRS)
+python manage.py makemigrations my_app
+in the my_app open templates -> my_app -> templates -> example.html
+
+variables:
+can send variables by 'return render(request, 'my_app/variable.html', context=my_var)'
+in html index is through '.'
+
+filters:
+{{first_name}}
+Yermakhan
+{{first_name | upper}}
+YERMAKHAN
+
+tags:
+    <ul>
+    {% for item in some_list%}
+        <li>{{item}}</li>
+
+    {% endfor %}
+    </ul>
+
+if elif else:
+    {% if user_logged_in %}
+        <h1>Welcome {{first_name | lower | capfirst}}</h1>
+    {% endif %}
+
+Tags and Url names inTemplates:
+    register app names in urls.py (app level)
+    give names to urls
+    <h1><a href="{% url 'my_app:variable' %}">CLICK ME TO GO TO VARIABLE</a></h1>
+
+Template inheritance:
+create templates file in the project level and create base.html inside of it
+write a block inside the body
+    {% block content %}
+
+    {% endblock %}
+
+andin a app level tenplate file write:
+    {% block content %}
+
+    <h1>THIS IS INSIDE THE BLOCK IN EXAMPLE.HTML</h1>
+
+    {% endblock %}
+
+add templates file to the TEMPLATES list in the settings.py file
+    'DIRS': [os.path.join(BASE_DIR, 'templates')],
+
+Custom Error Templates:
+-create a 404.html in project level templates file
+-set the Debug=True in settings.py and put '127.0.0.1' in allowed hosts
+If you want to name it otherwise:
+-create a view in the my site level:
+    from django.shortcuts import render
+
+    def my_custom_page_not_found_view(request, exception):
+
+        return render(request, '404.html', status=404)
+-and in the site level urls.py write:
+    handler404 = 'my_site.views.my_custom_page_not_found_view'
+(however it is better to just name the file as 404.html)
+
+Static files:
+-make sure that in settings.py file inside the INSTALLED_APPS   'django.contrib.staticfiles', is present
+-and check in settings.py:
+    # my_app/static/my_app/django.jpg
+    STATIC_URL = 'static/' is present
+-then create static folder in my_app and create my_app folder inside of it and place the image inside this folder
+-and you can reference it inside some html file
+-go to the example.html inside the my_app
+-then inside the block write:
+    <img src="{% static 'my_app/django.jpg' %}" alt="my image">
+-and do not foreget to restart the server

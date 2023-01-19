@@ -1,0 +1,179 @@
+DJANGO FORM CLASS BASICS
+-Start project and start app
+-Create templates folder in app and apps directory inside folder
+-Create html files inside this directory
+-create corresponding views inside the app and link to their html files
+-link these views to the urls.py file inside the app and set the app name inside urls.py
+-link app level urls.py to the project level urls.py file
+-add the app to the INSTALLED_APPS list inside the settings.py file
+
+-create forms.py in app level
+-create a review form:
+class ReviewForm(forms.Form):
+    first_name = forms.CharField(label='First_name', max_length=100)
+    last_name = forms.CharField(label='Last_name', max_length=100)
+    email = forms.EmailField(label='Email')
+    review = forms.CharField(label='Please write your review here')
+
+-after create a logic for this view:
+
+
+    # POST REQUEST --> FORM CONTENTS --> THANK YOU
+    if request.method == "POST":
+        form = ReviewForm(request.POST)
+        if form.is_valid():
+            #{'first_name':'Jose',}
+            print(form.cleaned_data)
+            return redirect(reverse('cars:thank_you'))
+    else:
+        form = ReviewForm( )
+    return render(request, 'cars/rental_review.html', context={"form" : form})
+
+-and include the form into html which was received from view by "context":
+    <form method="POST">
+        {% csrf_token %}
+        {{form}}
+        <input type="submit">
+    </form>
+
+DJANGO FORMS TEMPLATE RENDERING:
+- you can render the form by using djnago methods:
+<body>
+    <h1>RENTAL REVIEW FORM</h1>
+    form.as_p
+
+</body>
+
+- you can manually grab components:
+<body>
+    <h1>RENTAL REVIEW FORM</h1>
+    {{form.first_name.label_tag}} {{form.first_name}}
+</body>
+
+-you can render the form by using django:
+
+<body>
+    <h1>RENTAL REVIEW FORM</h1>
+    <div class="container">
+        <form method="POST">
+        {% csrf_token %}
+        {% for field in form %}
+            <div class="mb-3">
+                {{field.label_tag}}
+            </div>
+        {{field}}
+        {% endfor %}
+        <input type="submit">
+    </form>
+    </div>
+
+</body>
+
+DJANGO FORMS - WIDGETS AND STYLING:
+
+-firstly in the app directory you need to create 'static' directory and 'app' directory inside it and create 'custom.css' inside it
+-do some styling in the css file:
+.myform{
+    border: 5px dashed red;
+}
+-check the settins.py file for the right settings about static folder
+-then do the migrations so the project registers the static files:
+-include the static into the html file:
+    {% load static %}
+    <html>
+    <head>
+    <head>
+    <body>
+        <div class="container myform">
+    <body>
+
+-you can use 'widgets' to style your forms: and give css attributes to it:
+
+class ReviewForm(forms.Form):
+    first_name = forms.CharField(label='First_name', max_length=100)
+    last_name = forms.CharField(label='Last_name', max_length=100)
+    email = forms.EmailField(label='Email')
+    review = forms.CharField(label='Please write your review here',
+                             widget=forms.Textarea(attrs={'class':'myform', 'rows':'2','cols':'2'}))
+
+DJANGO - MODEL FORMS:
+- you can turn your datamodel automatically into a forms automatically by django:
+- first you need to create a model and in the forms.py file you need to do the following:
+
+class ReviewForm(ModelForm):
+    class Meta:
+        model = Review
+        fields = ['first_name', 'last_name', 'stars']
+
+-then you can save it in the view:
+
+def rental_review(request):
+
+    # POST REQUEST --> FORM CONTENTS --> THANK YOU
+    if request.method == "POST":
+        form = ReviewForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect(reverse('cars:thank_you'))
+
+    # ELSE, RENDER A FORM
+    else:
+        form = ReviewForm( )
+    return render(request, 'cars/rental_review.html', context={"form" : form})
+
+DJANGO - MODEL FORMS CUSTOMIZATION:
+-you can simply pass in all the modelfilelds:
+class ReviewForm(ModelForm):
+    class Meta:
+        model = Review
+        fields = "__all__"
+-you can also add the validators for model fields:
+
+from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
+
+class Review(models.Model):
+    first_name = models.CharField(max_length=30)
+    last_name = models.CharField(max_length=30)
+    stars = models.IntegerField(validators=[MinValueValidator(1),MaxValueValidator(5)])
+
+-then inside the html file you can display the error messages as such:
+<body>
+    <h1>RENTAL REVIEW FORM</h1>
+    <div class="container">
+        <form method="POST">
+        {% csrf_token %}
+        {% for field in form %}
+            <div class="mb-3">
+                {{field.label_tag}}
+            </div>
+            {{field}}
+            {{field.errors}}
+        {% endfor %}
+        <input type="submit">
+    </form>
+    </div>
+
+</body>
+
+-also you may customize the error messages by django modelForms:
+
+class ReviewForm(ModelForm):
+    class Meta:
+        model = Review
+        fields = "__all__"   #['first_name', 'last_name', 'stars']
+
+        labels = {
+            'first_name':'YOUR FIRST NAME',
+            'last_name':'Last Name',
+            'stars':'Rating'
+        }
+
+        error_messages = {
+            'stars':{
+                'min_value':"YO! Min value is 1", #chack the documentation for the keys
+                'max_value':"YO! YO! Max value is 5"
+            }
+        }
+
+- then view checks if the received form is valid or not. If not it will display the error message.

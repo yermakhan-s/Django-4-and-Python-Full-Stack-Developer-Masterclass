@@ -1,0 +1,229 @@
+MODEL AND WEBSITE PART 1:
+
+-create project my_car_site
+-create app cars
+-create template in base directory
+-create base.html inside templates
+-inside app folder cars create templates folder
+-inside templates create cars folder
+-inside cars folder create add.html, delete.html, list.html files
+-inside cars/views  create corresponding views:
+
+def list(request):
+    return render(request,'cars/list.html')
+
+def add(request):
+    return render(request,'cars/add.html')
+
+def delete(request):
+    return render(request,'cars/delete.html')
+
+-inside cars create urls.py and add views to the urlpatterns
+    and set app_name='cars:
+
+from django.urls import path
+from . import views
+
+app_name = 'cars'
+
+urlpatterns = [
+    path('list/', views.list, name='list'),
+    path('add/', views.add, name='add'),
+    path('delete/', views.delete, name='delete')
+]
+
+-in project level urls.py include app level urls.py:
+
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('cars/', include('cars.urls'))
+]
+
+-add your app to the INSTALLED_APPS list inside the settings.py:
+
+INSTALLED_APPS = [
+    'cars.apps.CarsConfig',
+
+-inside the TEMPLATES list inside the settings.py file make sure that
+    'APP_DIRS' : True, so it can see the app level templates folder
+    and make sure to include project level templates folder:
+
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'APP_DIRS': True,
+
+- inside the base.html create a cod/
+- go to the Bootstrap and copy JsDeliver Css link and JavaScript link
+- add those to the head:
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <!-- CSS only -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi" crossorigin="anonymous">
+    <!-- JavaScript Bundle with Popper -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-OERcA2EqjJCMA+/3y+gxIOqMEjwtxJY7qPCqsdltbNJuaOe923+mo//f6V8Qbsw3" crossorigin="anonymous"></script>
+    <title>Document</title>
+</head>
+- go to the bootstrap->components and choose a template for nav bar
+- give urls to the views:
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'cars:add' %}">ADD</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'cars:list' %}">LIST</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'cars:delete' %}">DELETE</a>
+        </li>
+-after open a block in base.html body:
+{%block content%}
+{% endblock %}
+</body>
+
+-go to the app level templates and extend them as extension of base.html:
+{% extends "base.html" %}
+
+{% block content %}
+<h1>EXTENSION.HTML</h1>
+{% endblock %}
+
+MODEL AND WEBSITE PART2:
+
+-go to the models.py file  and create model for Car with a string representation (primary key is generated automatically):
+
+   class Car(models.Model):
+    #pk
+    brand=models.CharField(max_length=30)
+    year=models.IntegerField()
+    def __str__(self):
+        return f"Car is {self.brand} {self.year}"
+
+-in the list view get a qery for car from the databse and save as "all_cars":
+
+def list(request):
+    all_cars = models.Car.objects.all()
+    context = {'all_cars': all_cars}
+    return render(request,'cars/list.html',context=context)
+
+-pass it to the list.html as a dictionary {'all_cars': 'all_cars'}:
+
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>LIST.HTML</h1>
+    <ul>
+        {% for car in all_cars %}
+            <li>{{car}}</li>
+        {% endfor %}
+    </ul>
+</div>
+
+{% endblock %}
+
+-go to the add.html and create a form with security token, question for the brand, question for the year,
+ and submit button:
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>ADD.HTML</h1>
+    <h2>Add a new car to the database:</h2>
+    <form action="" method="POST">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="brand">Brand:</label>
+            <input class="form-control" type="text" id="brand" name="brand">
+        </div>
+        <div class="form-group">
+            <label for="year">Year:</label>
+            <input class="form-control" type="text" id="year" name="year">
+        </div>
+        <input class="btn btn-primary" type="submit">
+    </form>
+</div>
+
+{% endblock %}
+
+-go to the views.py and get the query from the add.html in add view(POST is a dictionary):
+
+def add(request):
+    if request.POST:
+        brand = request.POST['brand']
+        year = request.POST['year']
+        models.Car.objects.create(brand=brand, year=year)
+        # if user submitted new car ----> list.html
+        return redirect(reverse('cars:list'))
+    else:
+        return render(request,'cars/add.html')
+--if there is a request then rdirect to the list.html, if there is not request user is visiting
+  the page for the first time so go to the add.html
+
+-similarly to the add for the delete view if there is a request delete row with this "pk" from the database.
+ if there is no such "pk" then print("pk not found") and redirect to the list.html
+
+def delete(request):
+    if request.POST:
+        pk = request.POST['pk']
+        try:
+            models.Car.objects.get(pk=pk).delete()
+            return redirect(reverse('cars:list'))
+        except:
+            print('pk not found!')
+            return redirect(reverse('cars:list'))
+    else:
+        return render(request,'cars/delete.html')
+
+-in delete.html method is POST, csrf token is present, question for the primary key and submit button:
+
+{% extends "base.html" %}
+
+{% block content %}
+<div>
+    <h1>DELETE.HTML</h1>
+    <h1>Enter pk to delete car</h1>
+    <form action="" method="POST">
+        {% csrf_token %}
+            <div class="form-group">
+                <label for="pk">PK Number</label>
+                <input class="form-control" type="text" id="pk" name="pk">
+            </div>
+        <input class="btn btn-primary" type="submit">
+    </form>
+</div>
+
+{% endblock %}
+
+DJANGO ADMINISTRATION:
+
+-creating superuser:
+python manage.py createsuperuser
+Username (leave blank to use 'user'): admin
+Email address: yerma@test.com
+Password:
+Password (again):
+The password is too similar to the username.
+This password is too short. It must contain at least 8 characters.
+This password is too common.
+Bypass password validation and create user anyway? [y/N]: y
+Superuser created successfully.
+
+-register your models in admin.py file:
+
+from django.contrib import admin
+from .models import Car
+# Register your models here.
+admin.site.register(Car)
+
+-you can customize your admin side by this:
+
+class CarAdmin(admin.ModelAdmin):
+    fieldsets = [
+        ('TIME INFORMATION', {'fields': ['year']}),
+        ('CAR INFORMATION', {'fields': ['brand']})
+    ]
+admin.site.register(Car,CarAdmin)

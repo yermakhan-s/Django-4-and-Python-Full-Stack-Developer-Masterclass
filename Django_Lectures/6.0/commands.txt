@@ -1,0 +1,152 @@
+USER AUTHENTICATION AND SESSIONS
+
+PROJECT SKELETON:
+-first set up a project "library" with app "catalog"
+-you can redirect the homepage authomatically to the app urls by:
+from django.views.generic import RedirectView
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('catalog/', include('catalog.urls')),
+    path('', RedirectView.as_view(url='catalog/'))
+]
+
+USER AUTHENTICATION WITH DJANGO USER MODEL:
+
+-first add 'accounts' to the url path in project level:
+
+    path('accounts/', include('django.contrib.auth.urls'))
+
+-on the outside the project level create templates/registration directory
+-in settings.py includes created 'templates' directory to the 'DIRS':
+
+import os
+
+'DIRS': [os.path.join(BASE_DIR, 'templates')],
+
+-create the login.html:
+{% if form.errors %}
+    <p>Your username or password was incorrect. Try again</p>
+{% endif %}
+
+{% if next %}
+    {% if user.is_authenticated %}
+        <p>You dont have permission for this page</p>
+    {% else %}
+        <p>Please Login to see this page</p>
+    {% endif %}
+{% endif %}
+
+<form method="post"  action="{% url 'login' %}">
+    {% csrf_token %}
+    {{form.username.label_tag}}
+    {{form.username}}
+    {{form.password.label_tag}}
+    {{form.password}}
+    <input type="submit" value="login">
+    <input type="hidden" name="next" value="{{next}}">
+</form>
+
+-by default it goes to the 'accounts/profile' after login.
+-but you can add following to the settings.py:
+    LOGIN_REDIRECT_URL = '/'
+
+USER AUTHENTICATION ON VIEWS:
+-You can display certain information to the user depending on wether they loged in or not
+ on template side of things:
+     <h1>HOMEPAGE</h1>
+    <p>Total Books: {{num_books}}</p>
+    <p>Num Available: {{num_instances_avail}}</p>
+    {% if user.is_authenticated %}
+        <p>You are Logged In</p>
+        <p>Welcome: {{user.get_username}}</p>
+        <a href="{% url 'logout' %}?next={{request.path}}">LOGOUT HERE</a>
+    {% else %}
+        <p>You are not logged in</p>
+        <a href="{% url 'login' %}?next={{request.path}}">LOGIN HERE</a>
+    {% endif %}
+- when you logout or login 'next' command automatically takes you back to the current page
+- you can make do user logged in loged out manipulations on the function based view side of things with decorators
+    you can see such pages only after you logged in:
+
+from django.contrib.auth.decorators import login_required
+
+@login_required
+def my_view(request):
+    return render(request, 'catalog/my_view.html')
+
+- for the class based views you use 'mixins':
+
+from django.contrib.auth.mixins import LoginRequiredMixin
+
+class BookCreate(LoginRequiredMixin,CreateView):#model_form.html
+    model = Book
+    fields = '__all__'
+
+USER REGISTRATION AND FORMS:
+-you can make class based view 'UserCreationForm' to create new user:
+
+from django.contrib.auth.forms import UserCreationForm
+
+class SignUpView(CreateView):
+    form_class = UserCreationForm
+    success_url = reverse_lazy('login')
+    template_name = 'catalog/signup.html'
+
+-add it to the urls.py
+    path('signup/', views.SignUpView.as_view(), name='signup')
+-also create a template for the signup:
+
+<h1>Register New User Here</h1>
+<form method="POST">
+    {% csrf_token %}
+    {{form.as_p}}
+    <input type="submit" value="signup">
+</form>
+
+USER SPECIFIC PAGES:
+
+-We added a user (borrower) to the book instances:
+class BookInstance(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    book = models.ForeignKey('Book', on_delete=models.RESTRICT, null=True)
+    imprint = models.CharField(max_length=200)
+    due_back = models.DateField(null=True, blank=True)
+    borrower = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    LOAN_STATUS = (
+        ('m', 'Maintenance'),
+        ('o', 'On Loan'),
+        ('a', 'Available'),
+        ('r', 'Reserved')
+    )
+
+    status = models.CharField(max_length=1, choices=LOAN_STATUS, blank=True, default='m')
+
+    class Meta:
+        ordering = ['due_back']
+
+    def __str__(self):
+        return f'{self.id} ({self.book.title})'
+
+-then created a class based view to see the checked ot books for user:
+
+class CheckedOutBooksByUserView(LoginRequiredMixin, ListView):
+    # List all BookInstances But I will Filter Currently Logged in User Session
+    model = BookInstance
+    template_name = 'catalog/profile.html'
+    paginate_by = 5 # 5 book instances per page
+
+    def get_queryset(self):
+        return BookInstance.objects.filter(borrower=self.request.user).all()
+- user is present in the "request" because we are already logged in
+
+- add it to the urls:
+path('profile/', views.CheckedOutBooksByUserView.as_view(), name='profile')
+
+-profile html which displays the borrowed books:
+
+<h1>Welcome to Your Profile</h1>
+<h2>Here are your books checked out:</h2>
+
+{% for book in bookinstance_list %}
+    <p>{{book}}</p>
+{% endfor %}

@@ -1,0 +1,150 @@
+DJANGO CLASS BASED VIEWS
+
+TEMPLATE VIEW:
+
+-first off create a project named "school" and the app named "classroom"
+-register the app, create urls.py in app connect it to the project level urls.py, create templates/classroom inside the app
+-create a simple model for the Teacher, and do the migrations
+-create homeview, and thank_you view via TemplateView:
+
+from django.shortcuts import render
+from django.views.generic import TemplateView
+
+class HomeView(TemplateView):
+    template_name = 'classroom/home.html'
+
+class ThankYouView(TemplateView):
+    template_name = 'classroom/thank_you.html'
+
+-you need to fill in the urls.py slightly different:
+
+from django.urls import path
+from .views import HomeView, ThankYouView
+app_name = 'classroom'
+
+urlpatterns = [
+    path('', HomeView.as_view(), name='home'), #path expects a function
+    path('thank_you/', ThankYouView.as_view(), name='thank_you')
+]
+
+-create home.html and create a link to the thank_you.html inside home.html
+<h1>Welcom to home.html</h1>
+
+<ul>
+    <li>
+        <a href="{% url 'classroom:thank_you' %}"> THANK YOU PAGE LINK</a>
+    </li>
+</ul>
+
+FORM VIEW:
+-create a form inside the forms.py :
+class ContactForm(forms.Form):
+    name = forms.CharField()
+    message = forms.CharField(widget=forms.Textarea)
+
+-import it inside the views, also import FormView from generic:
+
+from django.views.generic import TemplateView, FormView
+from .forms import ContactForm
+from django.urls import reverse, reverse_lazy
+
+class ContactFormView(FormView):
+    form_class = ContactForm
+    template_name = 'classroom/contact.html'
+
+    #success url?
+    #success_url = "/classroom/thank_you/"
+    success_url = reverse_lazy('classroom:thank_you')
+
+    #what to do with the form?
+    def form_valid(self, form):
+        print(form.cleaned_data)
+        #ContactForm(request.POST)
+        return super().form_valid(form)
+
+-include this view into the urls:
+path('contact/', ContactFormView.as_view(), name='contact')
+
+CREATE VIEW:
+-import createView from generic and create the class model basedview:
+
+from django.views.generic import TemplateView, FormView, CreateView
+
+class TeacherCreateView(CreateView):
+    model = Teacher
+    # model_form.html
+    # .save()
+    fields = "__all__"
+    success_url = reverse_lazy('classroom:thank_you')
+
+- it will automatically seacrh for the model_form.html and will automatically save data to the database
+
+LIST VIEW:
+from django.views.generic import TemplateView, FormView, CreateView, ListView
+
+class TeacherListView(ListView):
+    model = Teacher
+    # model_list.html
+    queryset = Teacher.objects.order_by('first_name')
+    context_object_name = 'teacher_list'
+- you can customize the query and variable names inside view
+
+DETAIL VIEW:
+-set up the detail view:
+from django.views.generic import TemplateView, FormView, CreateView, ListView, DetailView
+
+class TeacherDeatilView(DetailView):
+    # Return only one model entry pk
+    # model_detail.html
+    model = Teacher
+    # pk --> {{teacher}}
+-create model_html file and display the detail (variable in the html is always a model name):
+
+<h1>Detail View for the Teacher</h1>
+{{teacher}}
+
+- in urls you should pass in the pk:
+    path('detail_teacher/<int:pk>', TeacherDeatilView.as_view(), name='detail_teacher')
+
+- you need to write a list like a href with pk passed in:
+<h1>List of Teachers (List View)</h1>
+<ul>
+    {% for teacher in teacher_list %}
+        <li><a href="/classroom/detail_teacher/{{teacher.id}}">{{teacher.first_name}} {{teacher.last_name}}</a></li>
+    {% endfor %}
+</ul>
+
+UPDATE VIEW:
+class TeacherUpdateView(UpdateView):
+    # Share model_form.html --- PK
+    model = Teacher
+    fields = "__all__"
+    success_url = reverse_lazy('classroom:list_teacher')
+-here it will share the model_form for a template, and as in deatil you should pass in the pk.
+-it is also best to past the pk in the list items template:
+
+<h1>List of Teachers (List View)</h1>
+
+<ul>
+    {% for teacher in teacher_list %}
+        <li>
+            <a href="/classroom/detail_teacher/{{teacher.id}}">{{teacher.first_name}} {{teacher.last_name}}</a>
+
+        </li>
+        <ul>
+            <li>
+                <a href="/classroom/update_teacher/{{teacher.id}}">Update Information for {{teacher.first_name}}</a>
+            </li>
+        </ul>
+    {% endfor %}
+</ul>
+
+DELETE VIEW:
+class TeacherDeleteView(DeleteView):
+    # Form --> Confirm Delete Button
+    # default template name:
+    # model_confirm_delete.html
+    model = Teacher
+    success_url = reverse_lazy('classroom:list_teacher')
+- it automatically searches for the confirmation template with the ceratin form.
+- you would also want to pass in the pk in urls and put the delete link in the list.html
